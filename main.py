@@ -1,16 +1,26 @@
 import telebot
 import os
-from threading import Thread
 
-# جلب التوكن من إعدادات الرندر لضمان عدم التصادم
+# سحب التوكن من إعدادات Render
 TOKEN = os.getenv('BOT_TOKEN')
+
+# تشغيل 100 خيط معالجة للسرعة القصوى
 bot = telebot.TeleBot(TOKEN, threaded=True, num_threads=100)
 
-@bot.message_handler(func=lambda m: m.text == 'حظر' and m.reply_to_message)
-def black_hole(message):
-    cid = message.chat.id
-    uid = message.reply_to_message.from_user.id
-    # تنفيذ الحظر فوراً في خيط معالجة مستقل للسرعة
-    Thread(target=bot.ban_chat_member, args=(cid, uid)).start()
+# 1. أوامر الرد المختصرة جداً (سرعة جنونية)
+@bot.message_handler(func=lambda message: message.text in ['بوت', 'هلا', 'فحص'])
+def fast_reply(message):
+    bot.reply_to(message, "هلا")
 
-bot.infinity_polling(interval=0, timeout=10)
+# 2. أمر الحظر المختصر
+@bot.message_handler(func=lambda message: message.text == 'حظر' and message.reply_to_message)
+def ban_user(message):
+    try:
+        bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        bot.reply_to(message, "تم")
+    except:
+        pass # تجاهل الخطأ لزيادة السرعة
+
+# تشغيل البوت
+if __name__ == "__main__":
+    bot.infinity_polling()
