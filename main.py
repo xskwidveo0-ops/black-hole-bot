@@ -1,36 +1,39 @@
-from hydrogram import Client, filters
-from hydrogram.raw import functions
 import os
+import asyncio
+from hydrogram import Client, filters
+from hydrogram.types import Message
 
-# سحب البيانات (محرك التوربو)
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# جلب المتغيرات من إعدادات رندر
+API_ID = os.environ.get("API_ID")
+API_HASH = os.environ.get("API_HASH")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+# تعريف البوت
 app = Client("black_hole", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# --- [1] الرد الخبيث (أسرع من البرق) ---
-# ملاحظة: تم إلغاء معالجة النصوص، البوت سيرد "لحظياً"
-@app.on_message(filters.regex("^(بوت|فحص)$") & filters.private)
-async def fast_reply(client, message):
-    # استخدام التوكنات المباشرة لتقليل استهلاك المعالج
+@app.on_message(filters.command("بوت", "") & filters.me)
+async def bot_check(client: Client, message: Message):
     await message.reply_text("⚡️")
 
-# --- [2] الحظر الإجرامي (بمستوى الـ Raw API) ---
-# هذا الأمر لا ينتظر "تأكيد" التلجرام، يرسل الأمر ويغادر فوراً
-@app.on_message(filters.regex("^حظر$") & filters.reply & filters.group)
-async def sniper_ban(client, message):
-    try:
-        # استخدام Raw Functions لتجاوز طبقات الحماية العادية في المكتبة
-        await client.invoke(
-            functions.channels.EditBanned(
-                channel=await client.resolve_peer(message.chat.id),
-                participant=await client.resolve_peer(message.reply_to_message.from_user.id),
-                banned_rights=message.chat.permissions # حظر كامل
-            )
-        )
-    except:
-        pass # لضمان عدم توقف البوت تحت أي ضغط
+@app.on_message(filters.command("حظر", "") & filters.me)
+async def ban_user(client: Client, message: Message):
+    if message.reply_to_message:
+        await client.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        await message.reply_text("👤 تم الحظر بنجاح!")
 
-print("⚠️ تم تفعيل وضع القوة النهائية.. السرعة الآن تتجاوز الحدود!")
-app.run()
+async def start_services():
+    print("--- محاولة تشغيل البوت ---")
+    try:
+        await app.start()
+        print("✅ تم تشغيل البوت بنجاح واتصل بتلجرام!")
+    except Exception as e:
+        print(f"❌ خطأ كارثي في الاتصال: {e}")
+    
+    # تشغيل سيرفر الويب للتمويه
+    port = int(os.environ.get("PORT", 10000))
+    print(f"🌐 تشغيل سيرفر التمويه على المنفذ: {port}")
+    os.system(f"python3 -m http.server {port}")
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_services())
