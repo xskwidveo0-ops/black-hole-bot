@@ -3,60 +3,50 @@ import threading
 import uvloop
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from hydrogram import Client, filters
+from hydrogram import Client, filters, idle
 
-# 1. تثبيت المحرك الفضائي في النظام
+# 1. تفعيل محرك uvloop (أسرع بـ 4 أضعاف من بايثون العادي)
 uvloop.install()
 
-# 2. إعدادات البوت (الرام فقط لسرعة البرق)
-app = Client(
-    "black_hole_turbo",
-    api_id=int(os.environ.get("API_ID")),
-    api_hash=os.environ.get("API_HASH"),
-    bot_token=os.environ.get("BOT_TOKEN"),
-    workers=32,
-    in_memory=True
-)
+async def run_ultimate_bot():
+    # 2. تشغيل سيرفر "التمويه" داخل الكود لضمان عدم حدوث تضارب
+    def run_web_server():
+        port = int(os.environ.get("PORT", 8080))
+        server = HTTPServer(("0.0.0.0", port), type('H', (BaseHTTPRequestHandler,), {
+            'do_GET': lambda s: (s.send_response(200), s.end_headers()),
+            'log_message': lambda *a: None
+        }))
+        server.serve_forever()
 
-# 3. دوال الرد السريع
-@app.on_message(filters.regex("بوت"))
-async def speed_test(client, message):
-    await message.reply_text("⚡️")
+    threading.Thread(target=run_web_server, daemon=True).start()
 
-@app.on_message(filters.regex("حظر") & filters.reply)
-async def ban_hammer(client, message):
-    try:
-        await client.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        await message.reply_text("👤 Done.")
-    except:
-        pass
+    # 3. إعدادات البوت "داخل" الدالة لضمان التوافق مع uvloop
+    # workers=100 يعني قدرة هائلة على معالجة مئات الرسائل في ثانية واحدة
+    app = Client(
+        "black_hole_ultimate",
+        api_id=int(os.environ.get("API_ID")),
+        api_hash=os.environ.get("API_HASH"),
+        bot_token=os.environ.get("BOT_TOKEN"),
+        workers=100, 
+        in_memory=True
+    )
 
-# 4. سيرفر التمويه (يعمل في Thread منفصل)
-class SilentHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-    def log_message(self, format, *args): pass
+    @app.on_message(filters.regex("بوت"))
+    async def fast_reply(client, message):
+        await message.reply_text("⚡️")
 
-def start_web_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), SilentHandler)
-    server.serve_forever()
+    @app.on_message(filters.regex("حظر") & filters.reply)
+    async def fast_ban(client, message):
+        try:
+            await client.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+            await message.reply_text("👤 Done.")
+        except: pass
 
-# 5. الوظيفة الرئيسية للتشغيل الصحيح
-async def start_all():
-    # تشغيل السيرفر في الخلفية
-    threading.Thread(target=start_web_server, daemon=True).start()
-    
-    print("🚀 ACTIVATING NUCLEAR ENGINE...")
+    print("🚀 THE NUCLEAR ENGINE IS LIVE...")
     await app.start()
-    print("✅ SYSTEM LIVE & HYPER-FAST")
-    
-    # ابقاء البوت حياً
-    from hydrogram.methods.utilities.idle import idle
-    await idle()
+    await idle() # ابقاء البوت حياً بأقل استهلاك للموارد
     await app.stop()
 
 if __name__ == "__main__":
-    # الطريقة الصحيحة لتشغيل uvloop بدون أخطاء RuntimeError
-    asyncio.run(start_all())
+    # تشغيل كل شيء في مسار واحد نظيف وسريع جداً
+    asyncio.run(run_ultimate_bot())
