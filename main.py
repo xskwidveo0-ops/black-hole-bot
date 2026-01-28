@@ -1,26 +1,24 @@
-import telebot
+from hydrogram import Client, filters
 import os
 
-# سحب التوكن من إعدادات Render
-TOKEN = os.getenv('BOT_TOKEN')
+# سحب البيانات من إعدادات Render (عشان الأمان والسرعة)
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# تشغيل 100 خيط معالجة للسرعة القصوى
-bot = telebot.TeleBot(TOKEN, threaded=True, num_threads=100)
+app = Client("black_hole", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# 1. أوامر الرد المختصرة جداً (سرعة جنونية)
-@bot.message_handler(func=lambda message: message.text in ['بوت', 'هلا', 'فحص'])
-def fast_reply(message):
-    bot.reply_to(message, "هلا")
+# --- [1] أمر الرد اللحظي (لقياس السرعة) ---
+@app.on_message(filters.regex("^(بوت|فحص)$"))
+async def speed_test(client, message):
+    # الرد هنا "Direct" بدون أي معالجة نصوص لتقليل التأخير
+    await message.reply_text("⚡️| أنا الأسرع في الوجود.")
 
-# 2. أمر الحظر المختصر
-@bot.message_handler(func=lambda message: message.text == 'حظر' and message.reply_to_message)
-def ban_user(message):
-    try:
-        bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        bot.reply_to(message, "تم")
-    except:
-        pass # تجاهل الخطأ لزيادة السرعة
+# --- [2] أمر الحظر الإجرامي (القناص) ---
+@app.on_message(filters.regex("^حظر$") & filters.reply & filters.group)
+async def black_hole_ban(client, message):
+    # الحظر يتم في "خلفية" البرنامج لضمان عدم تأخير أي عملية ثانية
+    await client.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
 
-# تشغيل البوت
-if __name__ == "__main__":
-    bot.infinity_polling()
+print("🚀 نظام بلاك هول في وضع الاستعداد.. تحدَّ أي بوت الآن!")
+app.run()
