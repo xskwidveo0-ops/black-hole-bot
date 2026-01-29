@@ -77,29 +77,35 @@ async def run_ultimate_bot():
         await sudo_collection.delete_one({"user_id": target_id})
         await message.reply_text(f"❌ تم الحذف من الذاكرة.")
 
-    @app.on_message(filters.regex(r"^مسح\s+(\d+)$"))
+        @app.on_message(filters.regex(r"^مسح\s+(\d+)$"))
     async def purge_msgs(client, message):
         if not await is_admin(client, message): return
-        count = int(message.matches[0].group(1))
-        msgs = []
-        if message.reply_to_message:
-            target = message.reply_to_message.from_user.id
-            async for m in client.get_chat_history(message.chat.id, limit=500):
-                if m.from_user and m.from_user.id == target: msgs.append(m.id)
-                if len(msgs) >= count: break
-        else:
-            async for m in client.get_chat_history(message.chat.id, limit=count + 1):
-                msgs.append(m.id)
         
-        if msgs:
-            await client.delete_messages(message.chat.id, msgs)
-            res = await message.reply_text(f"🧹 تم مسح {len(msgs)} رسالة.")
-            await asyncio.sleep(2)
-            await res.delete()
-
-    print("🚀 THE NUCLEAR ENGINE IS LIVE WITH MEMORY...")
-    await app.start()
-    await idle()
-
-if __name__ == "__main__":
-    asyncio.run(run_ultimate_bot())
+        # أخذ العدد المطلوب مسحه
+        count = int(message.matches[0].group(1))
+        chat_id = message.chat.id
+        
+        # التكنيك الجديد: حذف مباشر بدون طلب الأرشيف
+        message_ids = []
+        current_id = message.id
+        
+        # إذا كان بالرد على شخص
+        if message.reply_to_message:
+            # نحذف رسالة الشخص اللي سويت عليه رد + رسالة الأمر نفسه
+            message_ids.append(message.reply_to_message.id)
+            message_ids.append(current_id)
+            await client.delete_messages(chat_id, message_ids)
+        else:
+            # مسح عام: نحسب الآيديات تنازلياً ونحذفها دفعة واحدة
+            # نجمع آيديات الرسائل (رسالة الأمر والرسائل اللي قبلها)
+            start_id = current_id
+            to_delete = [start_id - i for i in range(count + 1)]
+            
+            try:
+                await client.delete_messages(chat_id, to_delete)
+                # إرسال رسالة تأكيد مؤقتة
+                res = await client.send_message(chat_id, f"🧹 تم تنظيف {count} رسالة بنجاح.")
+                await asyncio.sleep(2)
+                await res.delete()
+            except Exception as e:
+                print(f"Error in Purge: {e}")
