@@ -15,7 +15,7 @@ db_client = AsyncIOMotorClient(MONGO_URL)
 db = db_client["black_hole_db"]
 sudo_collection = db["sudo_users"]
 
-# ضع آيديك هنا لكي يتحكم البوت بكل شيء
+# آيديك الخاص
 OWNER_ID = 778171393
 
 async def run_ultimate_bot():
@@ -65,7 +65,7 @@ async def run_ultimate_bot():
 
     @app.on_message(filters.regex("^رفع مميز$") & filters.reply)
     async def promote(client, message):
-        if message.from_user.id != OWNER_ID: return # المالك فقط يرفع مميزين
+        if message.from_user.id != OWNER_ID: return
         target_id = message.reply_to_message.from_user.id
         await sudo_collection.update_one({"user_id": target_id}, {"$set": {"user_id": target_id}}, upsert=True)
         await message.reply_text(f"✅ تم الحفظ في الذاكرة الدائمة.")
@@ -77,35 +77,29 @@ async def run_ultimate_bot():
         await sudo_collection.delete_one({"user_id": target_id})
         await message.reply_text(f"❌ تم الحذف من الذاكرة.")
 
-        @app.on_message(filters.regex(r"^مسح\s+(\d+)$"))
+    @app.on_message(filters.regex(r"^مسح\s+(\d+)$"))
     async def purge_msgs(client, message):
         if not await is_admin(client, message): return
-        
-        # أخذ العدد المطلوب مسحه
-        count = int(message.matches[0].group(1))
-        chat_id = message.chat.id
-        
-        # التكنيك الجديد: حذف مباشر بدون طلب الأرشيف
-        message_ids = []
-        current_id = message.id
-        
-        # إذا كان بالرد على شخص
-        if message.reply_to_message:
-            # نحذف رسالة الشخص اللي سويت عليه رد + رسالة الأمر نفسه
-            message_ids.append(message.reply_to_message.id)
-            message_ids.append(current_id)
-            await client.delete_messages(chat_id, message_ids)
-        else:
-            # مسح عام: نحسب الآيديات تنازلياً ونحذفها دفعة واحدة
-            # نجمع آيديات الرسائل (رسالة الأمر والرسائل اللي قبلها)
-            start_id = current_id
-            to_delete = [start_id - i for i in range(count + 1)]
+        try:
+            count = int(message.matches[0].group(1))
+            chat_id = message.chat.id
+            current_id = message.id
             
-            try:
+            if message.reply_to_message:
+                target_id = message.reply_to_message.id
+                await client.delete_messages(chat_id, [target_id, current_id])
+            else:
+                to_delete = [current_id - i for i in range(count + 1)]
                 await client.delete_messages(chat_id, to_delete)
-                # إرسال رسالة تأكيد مؤقتة
                 res = await client.send_message(chat_id, f"🧹 تم تنظيف {count} رسالة بنجاح.")
                 await asyncio.sleep(2)
                 await res.delete()
-            except Exception as e:
-                print(f"Error in Purge: {e}")
+        except Exception as e:
+            print(f"Error in Purge: {e}")
+
+    print("🚀 THE NUCLEAR ENGINE IS LIVE WITH MEMORY...")
+    await app.start()
+    await idle()
+
+if __name__ == "__main__":
+    asyncio.run(run_ultimate_bot())
