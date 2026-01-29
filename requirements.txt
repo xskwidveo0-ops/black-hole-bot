@@ -1,3 +1,5 @@
 hydrogram
 tgcrypto
 uvloop
+motor
+pymongo
