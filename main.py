@@ -16,7 +16,7 @@ db_client = AsyncIOMotorClient(MONGO_URL)
 db = db_client["black_hole_db"]
 sudo_collection = db["sudo_users"]
 
-OWNER_ID = 123456789  # آيديك الخاص
+OWNER_ID = 778171393  # آيديك الخاص
 
 async def run_ultimate_bot():
     # --- سيرفر التمويه ---
